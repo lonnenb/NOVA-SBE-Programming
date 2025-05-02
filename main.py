@@ -6,6 +6,8 @@ from datetime import date
 from uuid import uuid4
 import sqlite3
 
+
+
 DB_PATH = "finance.db"
 
 app = FastAPI()
