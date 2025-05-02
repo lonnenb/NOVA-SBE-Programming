@@ -120,18 +120,23 @@
         })
         const totals = ref({ income: 0, expense: 0 })
         const transactions = ref([])
+        let chart;
 
         const fetchData = async () => {
           const t = await axios.get('http://localhost:8000/transactions/')
           const s = await axios.get('http://localhost:8000/summary/totals')
           transactions.value = t.data
           totals.value = s.data
-          renderChart()
+          await renderChart()
         }
 
-        const renderChart = () => {
+        const renderChart = async () => {
+          if(chart) {
+            // Destroy chart to enable rerendering
+            chart.destroy();
+          }
           const ctx = document.getElementById('chartCanvas').getContext('2d')
-          new Chart(ctx, {
+          chart = new Chart(ctx, {
             type: 'bar',
             data: {
               labels: ['Income', 'Expenses'],
@@ -148,9 +153,12 @@
           await axios.post('http://localhost:8000/transactions/', form.value)
           form.value = { category: '', amount: 0, date: '', type: 'expense', recurring: false }
           await fetchData()
+          await renderChart()
         }
 
-        onMounted(fetchData)
+        onMounted(async () => {
+          await fetchData()
+        })
 
         return { form, totals, submit, transactions }
       }
