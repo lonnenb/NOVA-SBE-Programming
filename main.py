@@ -69,3 +69,5 @@ def list_transactions():
         cur = conn.execute("SELECT * FROM transactions ORDER BY date DESC")
         rows = cur.fetchall()
     return [Transaction(id=row[0], category=row[1], amount=row[2], date=row[3], type=row[4], recurring=bool(row[5])) for row in rows]
+
+#test
