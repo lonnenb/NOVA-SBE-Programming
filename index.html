@@ -1,168 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title> Fancy Finance Tracker</title>
-  <script src="https://unpkg.com/vue@3"></script>
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
-  <style>
-    body { padding: 2rem; background: #f8fafc; }
-    .card { box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    th { background: #f1f5f9; }
-  </style>
+    <meta charset="UTF-8"/>
+    <title> Fancy Finance Tracker</title>
+    <script src="https://unpkg.com/vue@3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+    <style>
+        body {
+            padding: 2rem;
+            background: #f8fafc;
+        }
+
+        .card {
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        th {
+            background: #f1f5f9;
+        }
+    </style>
 </head>
 <body>
-  <div id="app" class="container">
+<div id="app" class="container">
     <h1 class="mb-4"> Personal Finance Dashboard</h1>
 
     <div class="card p-4 mb-4">
-      <h3>Add Transaction</h3>
-      <form @submit.prevent="submit" class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label">Type</label>
-          <select v-model="form.type" class="form-select">
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Category</label>
-          <select class="form-select" v-model="form.category" required>
-            <option disabled value="">-- Select Category --</option>
-            <option>Wage</option>
-            <option>Passive Income</option>
-            <option>Rent</option>
-            <option>Groceries</option>
-            <option>Transport</option>
-            <option>Services</option>
-            <option>Entertainment</option>
-            <option>Shopping</option>
-            <option>Utilities</option>
-            <option>Restaurants</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Amount (€)</label>
-          <input type="number" class="form-control" v-model="form.amount" step="0.01" required />
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Date</label>
-          <input type="date" class="form-control" v-model="form.date" required />
-        </div>
-        <div class="col-md-4 d-flex align-items-end">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" v-model="form.recurring" />
-            <label class="form-check-label">Recurring?</label>
-          </div>
-        </div>
-        <div class="col-md-4 d-flex align-items-end">
-          <button type="submit" class="btn btn-primary">Save</button>
-        </div>
-      </form>
+        <h3>Add Transaction</h3>
+        <form @submit.prevent="submit" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Type</label>
+                <select v-model="form.type" class="form-select">
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Category</label>
+                <select class="form-select" v-model="form.category" required>
+                    <option disabled value="">-- Select Category --</option>
+                    <option v-for="(category, index) in categories" :key="index" :value="category">{{ category }}
+                    </option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Amount (€)</label>
+                <input type="number" class="form-control" v-model="form.amount" step="0.01" required/>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Date</label>
+                <input type="date" class="form-control" v-model="form.date" required/>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" v-model="form.recurring"/>
+                    <label class="form-check-label">Recurring?</label>
+                </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
     </div>
 
     <div class="row mb-4">
-      <div class="col-md-4">
-        <div class="card p-3 text-center">
-          <h5>Income</h5>
-          <p class="fs-4 text-success">€{{ totals.income.toFixed(2) }}</p>
+        <div class="col-md-4">
+            <div class="card p-3 text-center">
+                <h5>Income</h5>
+                <p class="fs-4 text-success">€{{ totals.income.toFixed(2) }}</p>
+            </div>
         </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card p-3 text-center">
-          <h5>Expenses</h5>
-          <p class="fs-4 text-danger">€{{ totals.expense.toFixed(2) }}</p>
+        <div class="col-md-4">
+            <div class="card p-3 text-center">
+                <h5>Expenses</h5>
+                <p class="fs-4 text-danger">€{{ totals.expense.toFixed(2) }}</p>
+            </div>
         </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card p-3 text-center">
-          <h5>Balance</h5>
-          <p class="fs-4 text-dark">€{{ (totals.income - totals.expense).toFixed(2) }}</p>
+        <div class="col-md-4">
+            <div class="card p-3 text-center">
+                <h5>Balance</h5>
+                <p class="fs-4 text-dark">€{{ (totals.income - totals.expense).toFixed(2) }}</p>
+            </div>
         </div>
-      </div>
     </div>
 
     <div class="card p-4 mb-4">
-      <h3>Income vs Expense Chart</h3>
-      <canvas id="chartCanvas" height="100"></canvas>
+        <h3>Income vs Expense Chart</h3>
+        <canvas id="barCanvas" height="100"></canvas>
+        <canvas id="pieCanvas" height="100"></canvas>
     </div>
 
     <div class="card p-4">
-      <h3>Recent Transactions</h3>
-      <table class="table table-striped mt-3">
-        <thead>
-          <tr>
-            <th>Date</th><th>Type</th><th>Category</th><th>Amount (€)</th><th>Recurring</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="tx in transactions" :key="tx.id">
-            <td>{{ tx.date }}</td>
-            <td>{{ tx.type }}</td>
-            <td>{{ tx.category }}</td>
-            <td>{{ tx.amount.toFixed(2) }}</td>
-            <td>{{ tx.recurring ? 'Yes' : 'No' }}</td>
-          </tr>
-        </tbody>
-      </table>
+        <h3>Recent Transactions</h3>
+        <table class="table table-striped mt-3">
+            <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Category</th>
+                <th>Amount (€)</th>
+                <th>Recurring</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="tx in transactions" :key="tx.id">
+                <td>{{ tx.date }}</td>
+                <td>{{ tx.type }}</td>
+                <td>{{ tx.category }}</td>
+                <td>{{ tx.amount.toFixed(2) }}</td>
+                <td>{{ tx.recurring ? 'Yes' : 'No' }}</td>
+            </tr>
+            </tbody>
+        </table>
     </div>
-  </div>
+</div>
 
-  <script>
-    const { createApp, ref, onMounted } = Vue
+<script>
+    const {createApp, ref, reactive, onMounted} = Vue
 
     createApp({
-      setup() {
-        const form = ref({
-          category: '', amount: 0, date: '', type: 'expense', recurring: false
-        })
-        const totals = ref({ income: 0, expense: 0 })
-        const transactions = ref([])
-        let chart;
+        setup() {
+            const categories = [
+                {label: 'Wage', isExpense: false},
+                {label: 'Passive Income', isExpense: false},
+                {label: 'Rent', isExpense: true},
+                {label: 'Groceries', isExpense: true},
+                {label: 'Transport', isExpense: true},
+                {label: 'Services', isExpense: true},
+                {label: 'Entertainment', isExpense: true},
+                {label: 'Shopping', isExpense: true},
+                {label: 'Utilities', isExpense: true},
+                {label: 'Restaurants', isExpense: true}
+            ]
+            const form = reactive({
+                category: '', amount: 0, date: '', type: 'expense', recurring: false
+            })
+            const totals = ref({income: 0, expense: 0})
+            const transactions = ref([])
+            let chart, chart2;
 
-        const fetchData = async () => {
-          const t = await axios.get('http://localhost:8000/transactions/')
-          const s = await axios.get('http://localhost:8000/summary/totals')
-          transactions.value = t.data
-          totals.value = s.data
-          await renderChart()
-        }
-
-        const renderChart = async () => {
-          if(chart) {
-            // Destroy chart to enable rerendering
-            chart.destroy();
-          }
-          const ctx = document.getElementById('chartCanvas').getContext('2d')
-          chart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-              labels: ['Income', 'Expenses'],
-              datasets: [{
-                label: '€',
-                data: [totals.value.income, totals.value.expense],
-                backgroundColor: ['#4ade80', '#f87171']
-              }]
+            const fetchData = async () => {
+                transactions.value = (await axios.get('http://localhost:8000/transactions/')).data;
+                totals.value = (await axios.get('http://localhost:8000/summary/totals')).data
             }
-          })
+
+            const renderBarChart = () => {
+                chart = new Chart(document.getElementById('barCanvas').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Income', 'Expenses'],
+                        datasets: [{
+                            label: '€',
+                            data: [totals.value.income, totals.value.expense],
+                            backgroundColor: ['#4ade80', '#f87171']
+                        }]
+                    }
+                })
+            }
+
+            const renderDoughnutChart = () => {
+                chart2 = new Chart(document.getElementById('pieCanvas').getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: categories
+                            .filter(c => c.isExpense)
+                            .map(c => c.label),
+                        datasets: [{
+                            label: "Expenses",
+                            data: [100] // TODO: Calculate expenses split into categories in python
+                        }]
+                    }
+                })
+            }
+
+            const renderCharts = () => {
+                // Destroy charts to enable rerendering
+                if (chart) chart.destroy();
+                if (chart2) chart2.destroy();
+                // Render charts
+                renderBarChart();
+                renderDoughnutChart();
+            }
+
+            const submit = async () => {
+                await axios.post('http://localhost:8000/transactions/', form.value)
+                form.value = {category: '', amount: 0, date: '', type: 'expense', recurring: false}
+                await fetchData()
+                renderCharts()
+            }
+
+            onMounted(async () => {
+                await fetchData()
+                renderCharts();
+            })
+
+            return {categories, form, totals, submit, transactions}
         }
-
-        const submit = async () => {
-          await axios.post('http://localhost:8000/transactions/', form.value)
-          form.value = { category: '', amount: 0, date: '', type: 'expense', recurring: false }
-          await fetchData()
-          await renderChart()
-        }
-
-        onMounted(async () => {
-          await fetchData()
-        })
-
-        return { form, totals, submit, transactions }
-      }
     }).mount('#app')
-  </script>
+</script>
 </body>
 </html>
