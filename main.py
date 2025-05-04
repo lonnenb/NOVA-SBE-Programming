@@ -56,7 +56,7 @@ def list_transactions(db: Session = Depends(get_db)):
     txs = db.query(TransactionORM).order_by(TransactionORM.date.desc()).all()
     return txs
   
-@app.post("/transactions/", response_model=TransactionOut)
+@app.post("/transactions/", response_model=TransactionCreate)
 def add_transaction(tx: TransactionCreate, db: Session = Depends(get_db)):
     new_tx = TransactionORM(id=str(uuid4()), **tx.dict())
     db.add(new_tx)

@@ -40,7 +40,7 @@
                 <label class="form-label">Category</label>
                 <select class="form-select" v-model="form.category" required>
                     <option disabled value="">-- Select Category --</option>
-                    <option v-for="(category, index) in categories" :key="index" :value="category">{{ category }}
+                    <option v-for="(category, index) in categories" :key="index" :value="category.label">{{ category.label }}
                     </option>
                 </select>
             </div>
@@ -184,10 +184,25 @@
             }
 
             const submit = async () => {
-                await axios.post('http://localhost:8000/transactions/', form.value)
-                form.value = {category: '', amount: 0, date: '', type: 'expense', recurring: false}
-                await fetchData()
-                renderCharts()
+                console.log(form);
+                await axios.post('http://localhost:8000/transactions/', {
+                    category: form.category,
+                    amount: form.amount,
+                    date: form.date,
+                    type: form.type,
+                    recurring: form.recurring,
+                });
+                resetForm();
+                await fetchData();
+                renderCharts();
+            }
+
+            const resetForm = () => {
+                form.category = '';
+                form.amount = 0;
+                form.date = '';
+                form.type = 'expense';
+                form.recurring = false;
             }
 
             onMounted(async () => {
