@@ -67,9 +67,8 @@ def list_transactions(db: Session = Depends(get_db)):
 
 @app.get("/summary/totals")
 def summary_totals(db: Session = Depends(get_db)):
-    totals = {"income": 0, "expense": 0}
     results = db.query(TransactionORM.type, TransactionORM.amount).all()
-    for t_type, amount in results:
-        if t_type in totals:
-            totals[t_type] += amount
-    return totals
+    return {
+        "income": sum(amount for t_type, amount in results if t_type == "income"),
+        "expense": sum(amount for t_type, amount in results if t_type == "expense"),
+    }
