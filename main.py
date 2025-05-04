@@ -4,7 +4,6 @@ from pydantic import BaseModel
 from typing import List, Literal
 from datetime import date
 from uuid import uuid4
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from models import Base, TransactionORM
@@ -47,11 +46,16 @@ class TransactionCreate(BaseModel):
     date: date
     type: Literal["income", "expense"]
     recurring: bool
-
+      
 class TransactionOut(TransactionCreate):
     id: str
 
 # Routes
+@app.get("/transactions/", response_model=List[TransactionOut])
+def list_transactions(db: Session = Depends(get_db)):
+    txs = db.query(TransactionORM).order_by(TransactionORM.date.desc()).all()
+    return txs
+  
 @app.post("/transactions/", response_model=TransactionOut)
 def add_transaction(tx: TransactionCreate, db: Session = Depends(get_db)):
     new_tx = TransactionORM(id=str(uuid4()), **tx.dict())
@@ -59,11 +63,6 @@ def add_transaction(tx: TransactionCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_tx)
     return new_tx
-
-@app.get("/transactions/", response_model=List[TransactionOut])
-def list_transactions(db: Session = Depends(get_db)):
-    txs = db.query(TransactionORM).order_by(TransactionORM.date.desc()).all()
-    return txs
 
 @app.get("/summary/totals")
 def summary_totals(db: Session = Depends(get_db)):
