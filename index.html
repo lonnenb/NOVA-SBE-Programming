@@ -184,7 +184,6 @@
             }
 
             const submit = async () => {
-                console.log(form);
                 await axios.post('http://localhost:8000/transactions/', {
                     category: form.category,
                     amount: form.amount,
