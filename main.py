@@ -64,6 +64,28 @@ def add_transaction(tx: TransactionCreate, db: Session = Depends(get_db)):
     db.refresh(new_tx)
     return new_tx
 
+@app.put("/transactions/{tx_id}", response_model=TransactionOut)
+def update_transaction(tx_id: str, tx: TransactionCreate, db: Session = Depends(get_db)):
+    existing_tx = db.query(TransactionORM).filter(TransactionORM.id == tx_id).first()
+    if not existing_tx:
+        return {"error": "Transaction not found"}
+
+    for key, value in tx.dict().items():
+        setattr(existing_tx, key, value)
+    db.commit()
+    db.refresh(existing_tx)
+    return existing_tx
+
+@app.delete("/transactions/{tx_id}")
+def delete_transaction(tx_id: str, db: Session = Depends(get_db)):
+    tx = db.query(TransactionORM).filter(TransactionORM.id == tx_id).first()
+    if not tx:
+        return {"error": "Transaction not found"}
+
+    db.delete(tx)
+    db.commit()
+    return {"message": "Transaction deleted"}
+
 @app.get("/summary/totals")
 def summary_totals(db: Session = Depends(get_db)):
     results = db.query(TransactionORM.type, TransactionORM.amount).all()

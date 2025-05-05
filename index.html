@@ -20,6 +20,10 @@
         th {
             background: #f1f5f9;
         }
+
+        .editing-row {
+        background-color: #fff9c4; /* sanftes Gelb */
+        }
     </style>
 </head>
 <body>
@@ -101,15 +105,52 @@
                 <th>Category</th>
                 <th>Amount (€)</th>
                 <th>Recurring</th>
+                <th>Actions</th>
             </tr>
             </thead>
             <tbody>
-            <tr v-for="tx in transactions" :key="tx.id">
-                <td>{{ tx.date }}</td>
-                <td>{{ tx.type }}</td>
-                <td>{{ tx.category }}</td>
-                <td>{{ tx.amount.toFixed(2) }}</td>
-                <td>{{ tx.recurring ? 'Yes' : 'No' }}</td>
+
+                <tr v-for="tx in transactions" :key="tx.id" :class="{ 'editing-row': editingId === tx.id }">
+                    <template v-if="editingId === tx.id">
+                        <td><input v-model="editedTx.date" type="date" class="form-control" /></td>
+                        <td>
+                          <select v-model="editedTx.type" class="form-select">
+                            <option value="income">Income</option>
+                            <option value="expense">Expense</option>
+                          </select>
+                        </td>
+                        <td>
+                          <select v-model="editedTx.category" class="form-select">
+                            <option v-for="(category, index) in categories" :key="index" :value="category.label">
+                              {{ category.label }}
+                            </option>
+                          </select>
+                        </td>
+                        <td><input v-model="editedTx.amount" type="number" class="form-control" /></td>
+                        <td><input type="checkbox" v-model="editedTx.recurring" /></td>
+                        <td>
+                          <button class="btn btn-success btn-sm me-2" @click="saveEdit">Save</button>
+                          <button class="btn btn-secondary btn-sm" @click="cancelEdit">Cancel</button>
+                        </td>
+                    </template>
+                    <template v-else>
+                      <td>{{ tx.date }}</td>
+                      <td>{{ tx.type }}</td>
+                      <td v-if="editingId === tx.id">
+                        <select class="form-select" v-model="form.category">
+                          <option v-for="(category, index) in categories" :key="index" :value="category.label">
+                            {{ category.label }}
+                          </option>
+                        </select>
+                      </td>
+                      <td v-else>{{ tx.category }}</td>
+                      <td>{{ tx.amount.toFixed(2) }}</td>
+                      <td>{{ tx.recurring ? 'Yes' : 'No' }}</td>
+                      <td>
+                        <button class="btn btn-sm btn-warning me-2" @click="startEdit(tx)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @click="deleteTransaction(tx.id)">Delete</button>
+                      </td>
+                    </template>
             </tr>
             </tbody>
         </table>
@@ -134,10 +175,46 @@
                 {label: 'Restaurants', isExpense: true}
             ]
             const form = reactive({
-                category: '', amount: 0, date: '', type: 'expense', recurring: false
+                id: null,
+                category: '',
+                amount: 0,
+                date: '',
+                type: 'expense',
+                recurring: false
             })
+            const editingId = ref(null);
+            const editedTx = reactive({
+                id: null,
+                category: '',
+                amount: 0,
+                date: '',
+                type: 'expense',
+                recurring: false
+            });
             const totals = ref({income: 0, expense: 0})
             const transactions = ref([])
+            
+            const startEdit = (tx) => {
+                editingId.value = tx.id;
+                Object.assign(editedTx, {...tx}); // Kopiere Daten in das Bearbeitungsobjekt
+            };
+
+            const cancelEdit = () => {
+                editingId.value = null;
+            };
+
+            const saveEdit = async () => {
+                await axios.put(`http://localhost:8000/transactions/${editingId.value}`, editedTx);
+                editingId.value = null;
+                await fetchData();
+                renderCharts();
+            };
+
+            const deleteTransaction = async (id) => {
+                await axios.delete(`http://localhost:8000/transactions/${id}`);
+                await fetchData();
+                renderCharts();
+            };
             let chart, chart2;
 
             const fetchData = async () => {
@@ -184,13 +261,24 @@
             }
 
             const submit = async () => {
-                await axios.post('http://localhost:8000/transactions/', {
-                    category: form.category,
-                    amount: form.amount,
-                    date: form.date,
-                    type: form.type,
-                    recurring: form.recurring,
-                });
+                if (form.id) {
+                    await axios.put(`http://localhost:8000/transactions/${form.id}`, {
+                        category: form.category,
+                        amount: form.amount,
+                        date: form.date,
+                        type: form.type,
+                        recurring: form.recurring,
+                    });
+                } else {
+                    await axios.post('http://localhost:8000/transactions/', {
+                        category: form.category,
+                        amount: form.amount,
+                        date: form.date,
+                        type: form.type,
+                        recurring: form.recurring,
+                    });
+                }
+
                 resetForm();
                 await fetchData();
                 renderCharts();
@@ -202,6 +290,7 @@
                 form.date = '';
                 form.type = 'expense';
                 form.recurring = false;
+                form.id = null;
             }
 
             onMounted(async () => {
@@ -209,7 +298,19 @@
                 renderCharts();
             })
 
-            return {categories, form, totals, submit, transactions}
+            return {
+                categories,
+                form,
+                totals,
+                submit,
+                transactions,
+                deleteTransaction,
+                editingId,
+                editedTx,
+                startEdit,
+                cancelEdit,
+                saveEdit
+            }
         }
     }).mount('#app')
 </script>
