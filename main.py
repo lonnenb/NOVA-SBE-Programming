@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import List, Literal
 from datetime import date
 from uuid import uuid4
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, Session
 from models import Base, TransactionORM
 
@@ -93,3 +93,8 @@ def summary_totals(db: Session = Depends(get_db)):
         "income": sum(amount for t_type, amount in results if t_type == "income"),
         "expense": sum(amount for t_type, amount in results if t_type == "expense"),
     }
+
+@app.get("/expenses/categories")
+def expenses_categories(db: Session = Depends(get_db)):
+    results = db.query(TransactionORM.category, func.sum(TransactionORM.amount).label("total")).group_by(TransactionORM.category).all()
+    return [{"category": r.category, "total": r.total} for r in results]
