@@ -11,4 +11,4 @@ class TransactionORM(Base):
     amount = Column(Float)
     date = Column(Date)
     type = Column(String)  # "income" or "expense"
-    recurring = Column(Boolean)
+    recurring = Column(String)  # Stores "No", "Daily", etc.

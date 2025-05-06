@@ -1,318 +1,390 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8"/>
-    <title> Fancy Finance Tracker</title>
-    <script src="https://unpkg.com/vue@3"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
-    <style>
-        body {
-            padding: 2rem;
-            background: #f8fafc;
-        }
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <script src="https://unpkg.com/vue@3"></script>
+        <meta charset="UTF-8"/>
+        <title> Fancy Finance Tracker</title>
+        <script src="https://unpkg.com/vue@3"></script>
+        <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+        <style>
+            body {
+                padding: 2rem;
+                background: #f8fafc;
+            }
 
-        .card {
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
+            .card {
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }
 
-        th {
-            background: #f1f5f9;
-        }
+            th {
+                background: #f1f5f9;
+            }
 
-        .editing-row {
-        background-color: #fff9c4; /* sanftes Gelb */
-        }
-    </style>
-</head>
-<body>
-<div id="app" class="container">
-    <h1 class="mb-4"> Personal Finance Dashboard</h1>
+            .editing-row {
+            background-color: #fff9c4; /* sanftes Gelb */
+            }
 
-    <div class="card p-4 mb-4">
-        <h3>Add Transaction</h3>
-        <form @submit.prevent="submit" class="row g-3">
+            #transactions-section {
+                background: white;
+                color: black;
+                padding: 20px;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+        </style>
+    </head>
+    <body>
+    <div id="app" class="container">
+        <h1 class="mb-4"> Personal Finance Dashboard</h1>
+        <p class="text-muted mb-4">Today is: {{ currentDate }}</p>
+
+        <div class="card p-4 mb-4">
+            <h3>Add Transaction</h3>
+            <form @submit.prevent="submit" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Type</label>
+                    <select v-model="form.type" class="form-select">
+                        <option value="income">Income</option>
+                        <option value="expense">Expense</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" v-model="form.category" required>
+                        <option disabled value="">-- Select Category --</option>
+                        <option v-for="(category, index) in categories" :key="index" :value="category.label">{{ category.label }}
+                        </option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Amount (€)</label>
+                    <input type="number" class="form-control" v-model="form.amount" step="0.01" required/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Date</label>
+                    <input type="date" class="form-control" v-model="form.date" required/>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check">
+                        <label class="form-label">Recurring?</label>
+                        <select v-model="form.recurring" class="form-select">
+                            <option value="No">No</option>
+                            <option value="Daily">Daily</option>
+                            <option value="Weekly">Weekly</option>
+                            <option value="Monthly">Monthly</option>
+                            <option value="Yearly">Yearly</option>
+                        </select>                    
+                    </div>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="row mb-4">
             <div class="col-md-4">
-                <label class="form-label">Type</label>
-                <select v-model="form.type" class="form-select">
-                    <option value="income">Income</option>
-                    <option value="expense">Expense</option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Category</label>
-                <select class="form-select" v-model="form.category" required>
-                    <option disabled value="">-- Select Category --</option>
-                    <option v-for="(category, index) in categories" :key="index" :value="category.label">{{ category.label }}
-                    </option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Amount (€)</label>
-                <input type="number" class="form-control" v-model="form.amount" step="0.01" required/>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Date</label>
-                <input type="date" class="form-control" v-model="form.date" required/>
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" v-model="form.recurring"/>
-                    <label class="form-check-label">Recurring?</label>
+                <div class="card p-3 text-center">
+                    <h5>Income</h5>
+                    <p class="fs-4 text-success">€{{ totals.income.toFixed(2) }}</p>
                 </div>
             </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary">Save</button>
+            <div class="col-md-4">
+                <div class="card p-3 text-center">
+                    <h5>Expenses</h5>
+                    <p class="fs-4 text-danger">€{{ totals.expense.toFixed(2) }}</p>
+                </div>
             </div>
-        </form>
-    </div>
-
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card p-3 text-center">
-                <h5>Income</h5>
-                <p class="fs-4 text-success">€{{ totals.income.toFixed(2) }}</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card p-3 text-center">
-                <h5>Expenses</h5>
-                <p class="fs-4 text-danger">€{{ totals.expense.toFixed(2) }}</p>
+            <div class="col-md-4">
+                <div class="card p-3 text-center">
+                    <h5>Balance</h5>
+                    <p class="fs-4 text-dark">€{{ (totals.income - totals.expense).toFixed(2) }}</p>
+                </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card p-3 text-center">
-                <h5>Balance</h5>
-                <p class="fs-4 text-dark">€{{ (totals.income - totals.expense).toFixed(2) }}</p>
-            </div>
+
+        <div class="card p-4 mb-4">
+            <h3>Income vs Expense Chart</h3>
+            <canvas id="barCanvas" height="100"></canvas>
+            <canvas id="pieCanvas" height="100"></canvas>
         </div>
-    </div>
 
-    <div class="card p-4 mb-4">
-        <h3>Income vs Expense Chart</h3>
-        <canvas id="barCanvas" height="100"></canvas>
-        <canvas id="pieCanvas" height="100"></canvas>
-    </div>
-
-    <div class="card p-4">
-        <h3>Recent Transactions</h3>
-        <table class="table table-striped mt-3">
-            <thead>
-            <tr>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Category</th>
-                <th>Amount (€)</th>
-                <th>Recurring</th>
-                <th>Actions</th>
-            </tr>
-            </thead>
-            <tbody>
-
-                <tr v-for="tx in transactions" :key="tx.id" :class="{ 'editing-row': editingId === tx.id }">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center">
+              <h3>Recent Transactions</h3>
+              <button class="btn btn-outline-secondary" @click="downloadPDF">Export as PDF</button>
+            </div>
+          
+            <div id="transactions-section" ref="pdfSection">
+                <table class="table table-striped mt-3">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Amount (€)</th>
+                    <th>Recurring</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="tx in transactions" :key="tx.id" :class="{ 'editing-row': editingId === tx.id }">
                     <template v-if="editingId === tx.id">
-                        <td><input v-model="editedTx.date" type="date" class="form-control" /></td>
-                        <td>
-                          <select v-model="editedTx.type" class="form-select">
-                            <option value="income">Income</option>
-                            <option value="expense">Expense</option>
-                          </select>
-                        </td>
-                        <td>
-                          <select v-model="editedTx.category" class="form-select">
-                            <option v-for="(category, index) in categories" :key="index" :value="category.label">
-                              {{ category.label }}
-                            </option>
-                          </select>
-                        </td>
-                        <td><input v-model="editedTx.amount" type="number" class="form-control" /></td>
-                        <td><input type="checkbox" v-model="editedTx.recurring" /></td>
-                        <td>
-                          <button class="btn btn-success btn-sm me-2" @click="saveEdit">Save</button>
-                          <button class="btn btn-secondary btn-sm" @click="cancelEdit">Cancel</button>
-                        </td>
-                    </template>
-                    <template v-else>
-                      <td>{{ tx.date }}</td>
-                      <td>{{ tx.type }}</td>
-                      <td v-if="editingId === tx.id">
-                        <select class="form-select" v-model="form.category">
+                      <td><input v-model="editedTx.date" type="date" class="form-control" /></td>
+                      <td>
+                        <select v-model="editedTx.type" class="form-select">
+                          <option value="income">Income</option>
+                          <option value="expense">Expense</option>
+                        </select>
+                      </td>
+                      <td>
+                        <select v-model="editedTx.category" class="form-select">
                           <option v-for="(category, index) in categories" :key="index" :value="category.label">
                             {{ category.label }}
                           </option>
                         </select>
                       </td>
-                      <td v-else>{{ tx.category }}</td>
+                      <td><input v-model="editedTx.amount" type="number" class="form-control" /></td>
+                      <td>
+                        <select v-model="editedTx.recurring" class="form-select">
+                          <option value="No">No</option>
+                          <option value="Daily">Daily</option>
+                          <option value="Weekly">Weekly</option>
+                          <option value="Monthly">Monthly</option>
+                          <option value="Yearly">Yearly</option>
+                        </select>
+                      </td>
+                      <td>
+                        <button class="btn btn-success btn-sm me-2" @click="saveEdit">Save</button>
+                        <button class="btn btn-secondary btn-sm" @click="cancelEdit">Cancel</button>
+                      </td>
+                    </template>
+                    <template v-else>
+                      <td>{{ tx.date }}</td>
+                      <td>{{ tx.type }}</td>
+                      <td>{{ tx.category }}</td>
                       <td>{{ tx.amount.toFixed(2) }}</td>
-                      <td>{{ tx.recurring ? 'Yes' : 'No' }}</td>
+                      <td>{{ tx.recurring }}</td>
                       <td>
                         <button class="btn btn-sm btn-warning me-2" @click="startEdit(tx)">Edit</button>
                         <button class="btn btn-sm btn-danger" @click="deleteTransaction(tx.id)">Delete</button>
                       </td>
                     </template>
-            </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
 
-<script>
-    const {createApp, ref, reactive, onMounted} = Vue
+    <script>
+        const {createApp, ref, reactive, onMounted, nextTick} = Vue;
 
-    createApp({
-        setup() {
-            const categories = [
-                {label: 'Wage', isExpense: false},
-                {label: 'Passive Income', isExpense: false},
-                {label: 'Rent', isExpense: true},
-                {label: 'Groceries', isExpense: true},
-                {label: 'Transport', isExpense: true},
-                {label: 'Services', isExpense: true},
-                {label: 'Entertainment', isExpense: true},
-                {label: 'Shopping', isExpense: true},
-                {label: 'Utilities', isExpense: true},
-                {label: 'Restaurants', isExpense: true}
-            ]
-            const form = reactive({
-                id: null,
-                category: '',
-                amount: 0,
-                date: '',
-                type: 'expense',
-                recurring: false
-            })
-            const editingId = ref(null);
-            const editedTx = reactive({
-                id: null,
-                category: '',
-                amount: 0,
-                date: '',
-                type: 'expense',
-                recurring: false
+        createApp({
+    setup() {
+        const currentDate = new Date().toLocaleDateString('en-GB');
+        const categories = [
+            {label: 'Wage', isExpense: false},
+            {label: 'Passive Income', isExpense: false},
+            {label: 'Rent', isExpense: true},
+            {label: 'Groceries', isExpense: true},
+            {label: 'Transport', isExpense: true},
+            {label: 'Services', isExpense: true},
+            {label: 'Entertainment', isExpense: true},
+            {label: 'Shopping', isExpense: true},
+            {label: 'Utilities', isExpense: true},
+            {label: 'Restaurants', isExpense: true}
+        ];
+
+        const form = reactive({
+            id: null,
+            category: '',
+            amount: 0,
+            date: '',
+            type: 'expense',
+            recurring: "No"
+        });
+
+        const editingId = ref(null);
+        const editedTx = reactive({
+            id: null,
+            category: '',
+            amount: 0,
+            date: '',
+            type: 'expense',
+            recurring: "No"
+        });
+
+        const totals = ref({income: 0, expense: 0});
+        const transactions = ref([]);
+
+        const startEdit = (tx) => {
+            editingId.value = tx.id;
+            Object.assign(editedTx, {...tx});
+        };
+
+        const cancelEdit = () => {
+            editingId.value = null;
+        };
+
+        const saveEdit = async () => {
+            await axios.put(`http://localhost:8000/transactions/${editingId.value}`, editedTx);
+            editingId.value = null;
+            await fetchData();
+            renderCharts();
+        };
+
+        const deleteTransaction = async (id) => {
+            await axios.delete(`http://localhost:8000/transactions/${id}`);
+            await fetchData();
+            renderCharts();
+        };
+
+        let chart, chart2;
+
+        const fetchData = async () => {
+            try {
+                const txResponse = await axios.get('http://localhost:8000/transactions/');
+                const totalsResponse = await axios.get('http://localhost:8000/summary/totals');
+
+                transactions.value = txResponse.data;
+                totals.value = totalsResponse.data;
+
+                console.log("✅ Transactions fetched:", transactions.value);
+                console.log("✅ Totals fetched:", totals.value);
+            } catch (err) {
+                console.error("Error fetching data:", err);
+                alert("Error loading dashboard data!");
+            }
+        };
+
+        const renderBarChart = () => {
+            chart = new Chart(document.getElementById('barCanvas').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['Income', 'Expenses'],
+                    datasets: [{
+                        label: '€',
+                        data: [totals.value.income, totals.value.expense],
+                        backgroundColor: ['#4ade80', '#f87171']
+                    }]
+                }
             });
-            const totals = ref({income: 0, expense: 0})
-            const transactions = ref([])
-            
-            const startEdit = (tx) => {
-                editingId.value = tx.id;
-                Object.assign(editedTx, {...tx}); // Kopiere Daten in das Bearbeitungsobjekt
-            };
+        };
 
-            const cancelEdit = () => {
-                editingId.value = null;
-            };
+        const renderDoughnutChart = () => {
+            chart2 = new Chart(document.getElementById('pieCanvas').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: categories
+                        .filter(c => c.isExpense)
+                        .map(c => c.label),
+                    datasets: [{
+                        label: "Expenses",
+                        data: [100] // Placeholder
+                    }]
+                }
+            });
+        };
 
-            const saveEdit = async () => {
-                await axios.put(`http://localhost:8000/transactions/${editingId.value}`, editedTx);
-                editingId.value = null;
-                await fetchData();
-                renderCharts();
-            };
+        const renderCharts = () => {
+            if (chart) chart.destroy();
+            if (chart2) chart2.destroy();
+            renderBarChart();
+            renderDoughnutChart();
+        };
 
-            const deleteTransaction = async (id) => {
-                await axios.delete(`http://localhost:8000/transactions/${id}`);
-                await fetchData();
-                renderCharts();
-            };
-            let chart, chart2;
+        const submit = async () => {
+            try {
+                console.log("Form being submitted:", JSON.stringify(form, null, 2));
+                const payload = {
+                    category: form.category,
+                    amount: form.amount,
+                    date: form.date,
+                    type: form.type,
+                    recurring: form.recurring,
+                };
 
-            const fetchData = async () => {
-                transactions.value = (await axios.get('http://localhost:8000/transactions/')).data;
-                totals.value = (await axios.get('http://localhost:8000/summary/totals')).data
-            }
-
-            const renderBarChart = () => {
-                chart = new Chart(document.getElementById('barCanvas').getContext('2d'), {
-                    type: 'bar',
-                    data: {
-                        labels: ['Income', 'Expenses'],
-                        datasets: [{
-                            label: '€',
-                            data: [totals.value.income, totals.value.expense],
-                            backgroundColor: ['#4ade80', '#f87171']
-                        }]
-                    }
-                })
-            }
-
-            const renderDoughnutChart = () => {
-                chart2 = new Chart(document.getElementById('pieCanvas').getContext('2d'), {
-                    type: 'doughnut',
-                    data: {
-                        labels: categories
-                            .filter(c => c.isExpense)
-                            .map(c => c.label),
-                        datasets: [{
-                            label: "Expenses",
-                            data: [100] // TODO: Calculate expenses split into categories in python
-                        }]
-                    }
-                })
-            }
-
-            const renderCharts = () => {
-                // Destroy charts to enable rerendering
-                if (chart) chart.destroy();
-                if (chart2) chart2.destroy();
-                // Render charts
-                renderBarChart();
-                renderDoughnutChart();
-            }
-
-            const submit = async () => {
                 if (form.id) {
-                    await axios.put(`http://localhost:8000/transactions/${form.id}`, {
-                        category: form.category,
-                        amount: form.amount,
-                        date: form.date,
-                        type: form.type,
-                        recurring: form.recurring,
-                    });
+                    await axios.put(`http://localhost:8000/transactions/${form.id}`, payload);
                 } else {
-                    await axios.post('http://localhost:8000/transactions/', {
-                        category: form.category,
-                        amount: form.amount,
-                        date: form.date,
-                        type: form.type,
-                        recurring: form.recurring,
-                    });
+                    await axios.post('http://localhost:8000/transactions/', payload);
                 }
 
                 resetForm();
                 await fetchData();
                 renderCharts();
+            } catch (err) {
+                console.error("Submission failed!", err);
+                alert("Error submitting form: " + err.message);
+            }
+        };
+
+        const resetForm = () => {
+            form.category = '';
+            form.amount = 0;
+            form.date = '';
+            form.type = 'expense';
+            form.recurring = "No";
+            form.id = null;
+        };
+
+        const pdfSection = ref(null);
+
+        const downloadPDF = async () => {
+            await nextTick(); // Ensures the DOM is rendered
+            const element = document.getElementById("transactions-section"); // Fallback safety
+            if (!element) {
+                alert("PDF section not found");
+                return;
             }
 
-            const resetForm = () => {
-                form.category = '';
-                form.amount = 0;
-                form.date = '';
-                form.type = 'expense';
-                form.recurring = false;
-                form.id = null;
-            }
+            html2pdf()
+                .set({
+                    margin: 10,
+                    filename: 'transactions.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                })
+                .from(element)
+                .toPdf()
+                .get('pdf')
+                .then(pdf => {
+                    console.log("✅ PDF generated successfully");
+                })
+                .save();
+        };
 
-            onMounted(async () => {
-                await fetchData()
-                renderCharts();
-            })
 
-            return {
-                categories,
-                form,
-                totals,
-                submit,
-                transactions,
-                deleteTransaction,
-                editingId,
-                editedTx,
-                startEdit,
-                cancelEdit,
-                saveEdit
-            }
-        }
-    }).mount('#app')
-</script>
-</body>
-</html>
+        onMounted(async () => {
+            await fetchData();
+            renderCharts();
+        });
+
+        return {
+            currentDate,
+            categories,
+            form,
+            totals,
+            submit,
+            transactions,
+            deleteTransaction,
+            editingId,
+            editedTx,
+            startEdit,
+            cancelEdit,
+            saveEdit,
+            downloadPDF,
+            pdfSection   // ← ✅ Add this
+        };
+
+    }
+}).mount('#app');
+    </script>
+    </body>
+    </html>
