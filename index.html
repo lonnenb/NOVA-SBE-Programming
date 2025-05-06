@@ -193,6 +193,7 @@
             });
             const totals = ref({income: 0, expense: 0})
             const transactions = ref([])
+            const categoryTransactionValues = ref([]) // Expsense/Income by category
             
             const startEdit = (tx) => {
                 editingId.value = tx.id;
@@ -220,6 +221,7 @@
             const fetchData = async () => {
                 transactions.value = (await axios.get('http://localhost:8000/transactions/')).data;
                 totals.value = (await axios.get('http://localhost:8000/summary/totals')).data
+                categoryTransactionValues.value = (await axios.get('http://localhost:8000/expenses/categories')).data
             }
 
             const renderBarChart = () => {
@@ -245,7 +247,7 @@
                             .map(c => c.label),
                         datasets: [{
                             label: "Expenses",
-                            data: [100] // TODO: Calculate expenses split into categories in python
+                            data: categoryTransactionValues.value.map(c => c.total)
                         }]
                     }
                 })
