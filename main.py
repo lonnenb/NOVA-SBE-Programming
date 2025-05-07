@@ -45,8 +45,8 @@ class TransactionCreate(BaseModel):
     amount: float
     date: date
     type: Literal["income", "expense"]
-    recurring: bool
-      
+    recurring: str
+
 class TransactionOut(TransactionCreate):
     id: str
 

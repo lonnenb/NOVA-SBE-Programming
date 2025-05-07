@@ -28,7 +28,7 @@ A simple personal finance dashboard built with **FastAPI** (backend) and **Vue.j
 python -m venv venv && source venv/bin/activate  # On Windows use: venv\Scripts\activate
 
 # 2. Install dependencies
-pip install fastapi uvicorn pydantic
+pip install fastapi uvicorn pydantic sqlalchemy
 
 # 3. Start the FastAPI backend
 uvicorn main:app --reload  # Runs on http://127.0.0.1:8000
