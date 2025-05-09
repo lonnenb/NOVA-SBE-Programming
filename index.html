@@ -7,6 +7,10 @@
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
   <style>
     body {
@@ -279,43 +283,24 @@ createApp({
       });
     };
 
-    const renderCharts = () => {
-      if (chart) chart.destroy();
-      if (chart2) chart2.destroy();
-      renderBarChart();
-      renderDoughnutChart();
-    };
-
     const downloadPDF = async () => {
-      await nextTick(); // Wait for Vue to update
-      await new Promise(resolve => setTimeout(resolve, 200)); // Give DOM time to paint
+      const element = document.getElementById("transactions-section");
 
-      const element = pdfSection.value || document.getElementById("transactions-section");
+      await nextTick();
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Ensure styles for full content rendering
-      element.style.overflow = 'visible';
-      element.style.height = 'auto';
-      element.style.maxHeight = 'none';
+      html2canvas(element, { scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-      // Optional: Hide buttons for cleaner PDF
-      const buttons = element.querySelectorAll('.btn');
-      buttons.forEach(btn => btn.style.display = 'none');
-
-      html2pdf().set({
-        margin: 10,
-        filename: 'transactions.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        }).from(element).save().then(() => {
-        // Restore buttons after export
-        buttons.forEach(btn => btn.style.display = '');
-        });
-        };
-        onMounted(async () => {
-          await fetchData();
-          renderCharts();
-        });
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save("transactions.pdf");
+      });
+    };
+    
     return {
       currentDate, categories, form, totals, transactions,
       editedTx, editingId, submit, resetForm, startEdit,
