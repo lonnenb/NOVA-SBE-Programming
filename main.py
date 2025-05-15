@@ -7,6 +7,7 @@ from uuid import uuid4
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, Session
 from models import Base, TransactionORM
+from dateutil.relativedelta import relativedelta
 
 import os
 
@@ -119,3 +120,50 @@ def categories_summary(days: int = 0, db: Session = Depends(get_db)):
         "income": [{"category": k, "total": v} for k, v in income.items()],
         "expense": [{"category": k, "total": v} for k, v in expense.items()],
     }
+
+def generate_recurring_instances(tx: TransactionORM, end_date: date, today: date):
+    freq_map = {
+        "Daily": lambda d: d + timedelta(days=1),
+        "Weekly": lambda d: d + timedelta(weeks=1),
+        "Monthly": lambda d: d + relativedelta(months=1),
+        "Yearly": lambda d: d + relativedelta(years=1),
+    }
+
+    if tx.recurring not in freq_map:
+        return []
+
+    instances = []
+    current = tx.date
+
+    # Move to first instance that falls within or after today
+    while current < today:
+        current = freq_map[tx.recurring](current)
+
+    # Generate instances within the future window
+    while current <= end_date:
+        instances.append(TransactionOut(
+            id=f"upcoming-{tx.id}-{current}",
+            category=tx.category,
+            amount=tx.amount,
+            date=current,
+            type=tx.type,
+            recurring=tx.recurring
+        ))
+        current = freq_map[tx.recurring](current)
+
+    return instances
+
+@app.get("/upcoming-transactions", response_model=List[TransactionOut])
+def upcoming_transactions(days: int = 30, db: Session = Depends(get_db)):
+    today = date.today()
+    future_limit = today + timedelta(days=days if days > 0 else 730)
+
+    recurring_txs = db.query(TransactionORM).filter(TransactionORM.recurring != "No").all()
+    upcoming = []
+
+    for tx in recurring_txs:
+        future_entries = generate_recurring_instances(tx, end_date=future_limit, today=today)
+        upcoming.extend(future_entries)
+
+    upcoming.sort(key=lambda x: x.date)
+    return upcoming
