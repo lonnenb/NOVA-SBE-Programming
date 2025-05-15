@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <title>Fancy Finance Tracker</title>
+  <title>Personal Finance Tracker</title>
   <script src="https://unpkg.com/vue@3"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -104,13 +104,40 @@
     </div>
   </div>
 
-  <div class="card p-4 mb-4">
-    <h3>Income vs Expense Chart</h3>
-    <canvas id="barCanvas" height="100"></canvas>
-    <canvas id="pieCanvas" height="100" class="mt-4"></canvas>
+<div class="card p-4 mb-4">
+  <h3>Overview</h3>
+  <div class="mb-3 text-end">
+    <label for="timeframe" class="form-label me-2">Timeframe:</label>
+    <select v-model="selectedTimeframe" id="timeframe" class="form-select d-inline-block w-auto">
+      <option value="all">All Time</option>
+      <option value="30">Last 30 Days</option>
+    </select>
   </div>
 
-  <div class="card p-4">
+  <div class="row">
+    <div class="col-md-6 d-flex flex-column align-items-center">
+      <h5>Income vs. Expenses</h5>
+      <canvas id="barCanvas" width="400" height="400"></canvas>
+    </div>
+    <div class="col-md-6 d-flex flex-column align-items-center">
+      <h5>Total by Category (Income & Expenses)</h5>
+      <canvas id="pieTotalCanvas" width="400" height="400"></canvas>
+    </div>
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-md-6 d-flex flex-column align-items-center">
+      <h5>Income by Category</h5>
+      <canvas id="incomeCanvas" width="400" height="400"></canvas>
+    </div>
+    <div class="col-md-6 d-flex flex-column align-items-center">
+      <h5>Expenses by Category</h5>
+      <canvas id="expenseCanvas" width="400" height="400"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="card p-4">
     <div class="d-flex justify-content-between align-items-center">
       <h3>Recent Transactions</h3>
       <button class="btn btn-outline-secondary" @click="downloadPDF">Export as PDF</button>
@@ -161,7 +188,7 @@
           </template>
           <template v-else>
             <td>{{ tx.date }}</td>
-            <td>{{ tx.type }}</td>
+            <td>{{ tx.type.charAt(0).toUpperCase() + tx.type.slice(1) }}</td>
             <td>{{ tx.category }}</td>
             <td>{{ tx.amount.toFixed(2) }}</td>
             <td>{{ tx.recurring }}</td>
@@ -178,7 +205,7 @@
 </div>
 
 <script>
-const { createApp, ref, reactive, onMounted, nextTick } = Vue;
+const { createApp, ref, reactive, onMounted, nextTick, watch } = Vue;
 
 createApp({
   setup() {
@@ -204,11 +231,19 @@ createApp({
     const transactions = ref([]);
     const categoryTransactionValues = ref([]);
     const pdfSection = ref(null);
+    const incomeCategoryData = ref([]);
+    const expenseCategoryData = ref([]);
+    const selectedTimeframe = ref("all");
 
     const fetchData = async () => {
-      transactions.value = (await axios.get('http://localhost:8000/transactions/')).data;
-      totals.value = (await axios.get('http://localhost:8000/summary/totals')).data;
-      categoryTransactionValues.value = (await axios.get('http://localhost:8000/expenses/categories')).data;
+      const queryParam = selectedTimeframe.value === "30" ? "?days=30" : "";
+
+      transactions.value = (await axios.get(`http://localhost:8000/transactions${queryParam}`)).data;
+      totals.value = (await axios.get(`http://localhost:8000/summary/totals${queryParam}`)).data;
+
+      const categoryData = (await axios.get(`http://localhost:8000/categories-summary${queryParam}`)).data;
+      incomeCategoryData.value = categoryData.income;
+      expenseCategoryData.value = categoryData.expense;
     };
 
     const submit = async () => {
@@ -249,39 +284,209 @@ createApp({
       renderCharts();
     };
 
-    let chart, chart2;
+    let chartBar, chartTotal, chartIncomeCat, chartExpenseCat;
     const renderBarChart = () => {
       const ctx = document.getElementById('barCanvas').getContext('2d');
-      chart = new Chart(ctx, {
+      if (chartBar) chartBar.destroy();
+      chartBar = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: ['Income', 'Expenses'],
           datasets: [{
             label: 'Amount (€)',
             data: [totals.value.income, totals.value.expense],
-            backgroundColor: ['#38bdf8', '#f87171']
+            backgroundColor: ['#22c55e', '#f87171']
           }]
+        },
+        options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: { display: false }
+        },
+        y: {
+          grid: { display: false }
         }
+      },
+      plugins: {
+      legend: {
+        position: 'right',
+        labels: {
+          boxWidth: 20,
+          padding: 20,
+          font: {
+            size: 12
+          },
+          generateLabels: (chart) =>
+            chart.data.labels.map((label, i) => ({
+              text: `${label}: €${chart.data.datasets[0].data[i].toFixed(2)}`,
+              fillStyle: chart.data.datasets[0].backgroundColor[i],
+              strokeStyle: chart.data.datasets[0].backgroundColor[i],
+              index: i
+            }))
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function (context) {
+            const val = context.parsed;
+            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            const pct = ((val / total) * 100).toFixed(1);
+            return `${context.label}: €${val.toFixed(2)} (${pct}%)`;
+          }
+        }
+      }
+    }
+  }
+
       });
     };
 
-    const renderDoughnutChart = () => {
-      const ctx = document.getElementById('pieCanvas').getContext('2d');
-      const labels = categoryTransactionValues.value.map(c => c.category);
-      const data = categoryTransactionValues.value.map(c => c.total);
-      const colors = labels.map(() => `hsl(${Math.random() * 360}, 70%, 60%)`);
-      chart2 = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Expenses by Category',
-            data: data,
-            backgroundColor: colors
-          }]
+const renderDoughnutCharts = () => {
+
+  const incomeColors = ['#22c55e', '#10b981', '#14b8a6', '#0ea5e9', '#3b82f6', '#2563eb'];
+  const expenseColors = ['#f97316', '#fb923c', '#ef4444', '#dc2626', '#e11d48', '#be123c'];
+
+  const totalCtx = document.getElementById('pieTotalCanvas').getContext('2d');
+  if (chartTotal) chartTotal.destroy();
+
+  const incomeLabelsOnly = incomeCategoryData.value.map(c => c.category);
+  const expenseLabelsOnly = expenseCategoryData.value.map(c => c.category);
+  const combinedLabels = [...incomeLabelsOnly, ...expenseLabelsOnly];
+
+  const combinedData = [
+    ...incomeCategoryData.value.map(c => c.total),
+    ...expenseCategoryData.value.map(c => c.total)
+  ];
+  const combinedColors = [
+    ...incomeCategoryData.value.map((_, i) => incomeColors[i % incomeColors.length]),
+    ...expenseCategoryData.value.map((_, i) => expenseColors[i % expenseColors.length])
+  ];
+
+  chartTotal = new Chart(totalCtx, {
+    type: 'doughnut',
+    data: {
+      labels: combinedLabels,
+      datasets: [{
+        data: combinedData,
+        backgroundColor: combinedColors
+      }]
+    },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            generateLabels: (chart) =>
+              chart.data.labels.map((label, i) => ({
+                text: `${label}: €${chart.data.datasets[0].data[i].toFixed(2)}`,
+                fillStyle: chart.data.datasets[0].backgroundColor[i],
+                strokeStyle: chart.data.datasets[0].backgroundColor[i],
+                index: i
+              }))
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              const val = context.parsed;
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = ((val / total) * 100).toFixed(1);
+              return `${context.label}: €${val.toFixed(2)} (${pct}%)`;
+            }
+          }
         }
-      });
-    };
+      }
+    }
+  });
+
+  // === Income by Category ===
+  const incomeCtx = document.getElementById('incomeCanvas').getContext('2d');
+  if (chartIncomeCat) chartIncomeCat.destroy();
+  chartIncomeCat = new Chart(incomeCtx, {
+    type: 'doughnut',
+    data: {
+      labels: incomeCategoryData.value.map(c => c.category),
+      datasets: [{
+        data: incomeCategoryData.value.map(c => c.total),
+        backgroundColor: incomeCategoryData.value.map((_, i) => incomeColors[i % incomeColors.length])
+      }]
+    },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            generateLabels: (chart) =>
+              chart.data.labels.map((label, i) => ({
+                text: `${label}: €${chart.data.datasets[0].data[i].toFixed(2)}`,
+                fillStyle: chart.data.datasets[0].backgroundColor[i],
+                strokeStyle: chart.data.datasets[0].backgroundColor[i],
+                index: i
+              }))
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              const val = context.parsed;
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = ((val / total) * 100).toFixed(1);
+              return `${context.label}: €${val.toFixed(2)} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // === Expense by Category ===
+  const expenseCtx = document.getElementById('expenseCanvas').getContext('2d');
+  if (chartExpenseCat) chartExpenseCat.destroy();
+  chartExpenseCat = new Chart(expenseCtx, {
+    type: 'doughnut',
+    data: {
+      labels: expenseCategoryData.value.map(c => c.category),
+      datasets: [{
+        data: expenseCategoryData.value.map(c => c.total),
+        backgroundColor: expenseCategoryData.value.map((_, i) => expenseColors[i % expenseColors.length])
+      }]
+    },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            generateLabels: (chart) =>
+              chart.data.labels.map((label, i) => ({
+                text: `${label}: €${chart.data.datasets[0].data[i].toFixed(2)}`,
+                fillStyle: chart.data.datasets[0].backgroundColor[i],
+                strokeStyle: chart.data.datasets[0].backgroundColor[i],
+                index: i
+              }))
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              const val = context.parsed;
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = ((val / total) * 100).toFixed(1);
+              return `${context.label}: €${val.toFixed(2)} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+};
 
     const downloadPDF = async () => {
       const element = document.getElementById("transactions-section");
@@ -301,12 +506,25 @@ createApp({
       });
     };
     
+    onMounted(async () => {
+    await fetchData();
+    renderBarChart();
+    renderDoughnutCharts();
+  });
+
+  watch(selectedTimeframe, async () => {
+    await fetchData();
+    renderBarChart();
+    renderDoughnutCharts();
+  });
+
     return {
       currentDate, categories, form, totals, transactions,
       editedTx, editingId, submit, resetForm, startEdit,
       cancelEdit, saveEdit, deleteTransaction,
-      downloadPDF, pdfSection
+      downloadPDF, pdfSection, selectedTimeframe
     };
+
   }
 }).mount('#app');
 </script>

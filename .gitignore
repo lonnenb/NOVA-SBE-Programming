@@ -7,3 +7,41 @@ __pycache__/
 
 # VS Code settings (optional)
 .vscode/
+data/finance.db
+
+# Python cache and bytecode files
+_pycache_/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# SQLite database files
+*.db
+*.sqlite3
+
+# Virtual environments
+venv/
+env/
+
+# VS Code project settings
+.vscode/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Compiled files
+*.so
+
+# Jupyter Notebooks checkpoints 
+.ipynb_checkpoints/
+
+# Node modules
+node_modules/
+
+# dotenv / secrets 
+.env
