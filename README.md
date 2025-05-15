@@ -29,6 +29,7 @@ python -m venv venv && source venv/bin/activate  # On Windows use: venv\Scripts\
 
 # 2. Install dependencies
 pip install fastapi uvicorn pydantic sqlalchemy
+pip install python-dateutil
 
 # 3. Start the FastAPI backend
 uvicorn main:app --reload  # Runs on http://127.0.0.1:8000
