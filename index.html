@@ -134,8 +134,44 @@
       <h5>Expenses by Category</h5>
       <canvas id="expenseCanvas" width="400" height="400"></canvas>
     </div>
-  </div>
 </div>
+</div>
+
+<!-- Upcoming Transactions -->
+<div class="card p-4 mt-4">
+  <div class="d-flex justify-content-between align-items-center">
+    <h3>Upcoming Transactions</h3>
+    <div>
+      <label class="me-2">Show:</label>
+      <select v-model="upcomingTimeframe" class="form-select d-inline-block w-auto">
+        <option value="30">Next 30 Days</option>
+        <option value="365">Next 365 Days</option>
+      </select>
+    </div>
+  </div>
+  <table class="table table-striped mt-3" v-if="upcomingTransactions.length > 0">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Category</th>
+        <th>Amount (€)</th>
+        <th>Recurring</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="tx in upcomingTransactions" :key="tx.id">
+        <td>{{ tx.date }}</td>
+        <td>{{ tx.type.charAt(0).toUpperCase() + tx.type.slice(1) }}</td>
+        <td>{{ tx.category }}</td>
+        <td>{{ tx.amount.toFixed(2) }}</td>
+        <td>{{ tx.recurring }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p v-else class="text-muted mt-2">No upcoming transactions in this range.</p>
+</div>
+
 
 <div class="card p-4">
     <div class="d-flex justify-content-between align-items-center">
@@ -209,18 +245,65 @@ const { createApp, ref, reactive, onMounted, nextTick, watch } = Vue;
 
 createApp({
   setup() {
+    const upcomingTransactions = ref([]);
+    const upcomingTimeframe = ref("30");
+
+    const fetchUpcomingTransactions = async () => {
+      const res = await axios.get(`http://localhost:8000/upcoming-transactions?days=${upcomingTimeframe.value}`);
+      console.log("Upcoming:", res.data); // 🔍 Debug
+      upcomingTransactions.value = res.data;
+    };
+
+
+    watch(upcomingTimeframe, fetchUpcomingTransactions);
+
     const currentDate = new Date().toLocaleDateString('en-GB');
     const categories = [
-      { label: 'Wage', isExpense: false },
-      { label: 'Passive Income', isExpense: false },
-      { label: 'Rent', isExpense: true },
-      { label: 'Groceries', isExpense: true },
-      { label: 'Transport', isExpense: true },
-      { label: 'Services', isExpense: true },
-      { label: 'Entertainment', isExpense: true },
-      { label: 'Shopping', isExpense: true },
-      { label: 'Utilities', isExpense: true },
-      { label: 'Restaurants', isExpense: true }
+      // Income Categories
+      { label: 'Salary & Wages', isExpense: false },
+      { label: 'Freelance & Side Hustles', isExpense: false },
+      { label: 'Business Profits', isExpense: false },
+      { label: 'Investment Returns', isExpense: false },
+      { label: 'Rental Income', isExpense: false },
+      { label: 'Government Benefits', isExpense: false },
+      { label: 'Gifts & Donations Received', isExpense: false },
+      { label: 'Cashback & Rewards', isExpense: false },
+      { label: 'Miscellaneous Income', isExpense: false },
+
+      // Expense Categories
+      { label: 'Rent/Mortgage', isExpense: true },
+      { label: 'Property Maintenance', isExpense: true },
+      { label: 'Home Insurance', isExpense: true },
+      { label: 'Electricity', isExpense: true },
+      { label: 'Water', isExpense: true },
+      { label: 'Internet/Phone', isExpense: true },
+      { label: 'Gas', isExpense: true },
+      { label: 'Supermarket', isExpense: true },
+      { label: 'Restaurants', isExpense: true },
+      { label: 'Takeout/Delivery', isExpense: true },
+      { label: 'Fuel', isExpense: true },
+      { label: 'Public Transport', isExpense: true },
+      { label: 'Ride-Sharing', isExpense: true },
+      { label: 'Car Maintenance', isExpense: true },
+      { label: 'Insurance', isExpense: true },
+      { label: 'Medical/Dental', isExpense: true },
+      { label: 'Pharmacy', isExpense: true },
+      { label: 'Tuition', isExpense: true },
+      { label: 'Books & Supplies', isExpense: true },
+      { label: 'Courses', isExpense: true },
+      { label: 'Streaming Services', isExpense: true },
+      { label: 'Subscriptions', isExpense: true },
+      { label: 'Hobbies & Activities', isExpense: true },
+      { label: 'Clothing', isExpense: true },
+      { label: 'Electronics', isExpense: true },
+      { label: 'Home Goods', isExpense: true },
+      { label: 'Bank Fees', isExpense: true },
+      { label: 'Interest Payments', isExpense: true },
+      { label: 'Charitable Giving', isExpense: true },
+      { label: 'Personal Gifts', isExpense: true },
+      { label: 'Savings Transfers', isExpense: true },
+      { label: 'Investment Contributions', isExpense: true },
+      { label: 'Uncategorized', isExpense: true }
     ];
     const form = reactive({
       id: null, category: '', amount: 0, date: '', type: 'expense', recurring: 'No'
@@ -244,6 +327,9 @@ createApp({
       const categoryData = (await axios.get(`http://localhost:8000/categories-summary${queryParam}`)).data;
       incomeCategoryData.value = categoryData.income;
       expenseCategoryData.value = categoryData.expense;
+
+      renderBarChart();
+      renderDoughnutCharts();
     };
 
     const submit = async () => {
@@ -506,25 +592,23 @@ const renderDoughnutCharts = () => {
       });
     };
     
-    onMounted(async () => {
+  onMounted(async () => {
     await fetchData();
+    await fetchUpcomingTransactions();
     renderBarChart();
     renderDoughnutCharts();
   });
 
-  watch(selectedTimeframe, async () => {
-    await fetchData();
-    renderBarChart();
-    renderDoughnutCharts();
-  });
+
+  watch(selectedTimeframe, fetchData);
 
     return {
       currentDate, categories, form, totals, transactions,
       editedTx, editingId, submit, resetForm, startEdit,
       cancelEdit, saveEdit, deleteTransaction,
-      downloadPDF, pdfSection, selectedTimeframe
+      downloadPDF, pdfSection, selectedTimeframe,
+      upcomingTransactions, upcomingTimeframe
     };
-
   }
 }).mount('#app');
 </script>
